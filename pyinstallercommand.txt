@@ -1,0 +1,1 @@
+pyinstaller main.py --name EZOpenVPNToolkit_v6 --onefile --icon=HMS.ico --console --add-data "needed_binaries;needed_binaries" --add-data "deploy_ovpn_server_linux.sh;." --add-data "deploy_ovpn_server_on_win10-11.ps1;." 
