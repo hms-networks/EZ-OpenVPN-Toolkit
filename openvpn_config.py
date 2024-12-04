@@ -1,5 +1,12 @@
 # openvpn_config.py
 
+# Copyright (C) 2024 - 2025 HMS Industrial Network Solutions
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
 import os
 import logging
 from datetime import datetime
@@ -8,8 +15,23 @@ from subnet_management import get_client_subnets
 
 BASE_DIR = get_base_dir()
 
-def generate_server_conf(server_conf_path, openvpn_tunnel_subnet, ca_crt_path, server_crt_path, server_key_path,
-                         dh_path, ta_key_path, crl_path, port, proto, cipher, data_ciphers, server_lan_subnet, ccd_dir):
+
+def generate_server_conf(
+    server_conf_path,
+    openvpn_tunnel_subnet,
+    ca_crt_path,
+    server_crt_path,
+    server_key_path,
+    dh_path,
+    ta_key_path,
+    crl_path,
+    port,
+    proto,
+    cipher,
+    data_ciphers,
+    server_lan_subnet,
+    ccd_dir,
+):
     """
     Generates the OpenVPN server configuration file with certificates and keys inline,
     and includes client subnets from subnets.csv.
@@ -19,8 +41,9 @@ def generate_server_conf(server_conf_path, openvpn_tunnel_subnet, ca_crt_path, s
         if cipher not in data_ciphers:
             data_ciphers.insert(0, cipher)
 
-        with open(server_conf_path, 'w', encoding='utf-8') as f:
-            f.write(f"""# OpenVPN Server Configuration
+        with open(server_conf_path, "w", encoding="utf-8") as f:
+            f.write(
+                f"""# OpenVPN Server Configuration
 port {port}
 proto {proto}
 dev tun
@@ -40,14 +63,15 @@ data-ciphers {':'.join(data_ciphers)}
 data-ciphers-fallback {cipher}
 key-direction 0
 management 127.0.0.1 7505
-""")  # Removed leading and trailing newlines
+"""
+            )  # Removed leading and trailing newlines
 
             # Inline certificates and keys
             f.write("### Certificates and Keys in Inline Format ###\n")
 
             def inline_file(tag, file_path):
                 f.write(f"<{tag}>\n")
-                with open(file_path, 'r') as file_content:
+                with open(file_path, "r") as file_content:
                     f.write(file_content.read())
                 f.write(f"</{tag}>\n\n")
 
@@ -71,17 +95,25 @@ management 127.0.0.1 7505
             server_lan_network_address = str(server_lan_subnet.network_address)
             server_lan_netmask = str(server_lan_subnet.netmask)
             f.write("\n## Server LAN Subnet ##\n")
-            f.write(f'push "route {server_lan_network_address} {server_lan_netmask}" # server_local_private_subnet\n')
-            f.write(f'route {server_lan_network_address} {server_lan_netmask} # server_local_private_subnet\n')
+            f.write(
+                f'push "route {server_lan_network_address} {server_lan_netmask}" # server_local_private_subnet\n'
+            )
+            f.write(
+                f"route {server_lan_network_address} {server_lan_netmask} # server_local_private_subnet\n"
+            )
 
             # Include Client Subnets
             f.write("\n## Client Subnets ##\n")
-            client_subnets = get_client_subnets(os.path.join(BASE_DIR, 'subnets.csv'))
+            client_subnets = get_client_subnets(os.path.join(BASE_DIR, "subnets.csv"))
             for client_name, client_subnet in client_subnets.items():
                 subnet_network = str(client_subnet.network_address)
                 subnet_netmask = str(client_subnet.netmask)
-                f.write(f'push "route {subnet_network} {subnet_netmask}" # {client_name}_local_private_subnet\n')
-                f.write(f'route {subnet_network} {subnet_netmask} # {client_name}_local_private_subnet\n')
+                f.write(
+                    f'push "route {subnet_network} {subnet_netmask}" # {client_name}_local_private_subnet\n'
+                )
+                f.write(
+                    f"route {subnet_network} {subnet_netmask} # {client_name}_local_private_subnet\n"
+                )
             f.write("## End of Client Subnets ##\n")
 
             # Add the timestamp at the end of the file
@@ -94,8 +126,20 @@ management 127.0.0.1 7505
         logging.error(f"Failed to generate server configuration: {e}")
         raise
 
-def generate_client_ovpn(client_name, client_dir, ca_crt_path, client_crt_path, client_key_path, ta_key_path,
-                         server_address, port, proto, cipher, data_ciphers):
+
+def generate_client_ovpn(
+    client_name,
+    client_dir,
+    ca_crt_path,
+    client_crt_path,
+    client_key_path,
+    ta_key_path,
+    server_address,
+    port,
+    proto,
+    cipher,
+    data_ciphers,
+):
     """
     Generates both .ovpn and .conf files for the client.
     """
@@ -108,10 +152,10 @@ def generate_client_ovpn(client_name, client_dir, ca_crt_path, client_crt_path, 
         client_conf_path = os.path.join(client_dir, f"{client_name}.conf")
 
         # Replace backslashes with forward slashes in paths
-        ca_crt_path = ca_crt_path.replace('\\', '/')
-        client_crt_path = client_crt_path.replace('\\', '/')
-        client_key_path = client_key_path.replace('\\', '/')
-        ta_key_path = ta_key_path.replace('\\', '/')
+        ca_crt_path = ca_crt_path.replace("\\", "/")
+        client_crt_path = client_crt_path.replace("\\", "/")
+        client_key_path = client_key_path.replace("\\", "/")
+        ta_key_path = ta_key_path.replace("\\", "/")
 
         config_content = f"""
 client
@@ -130,7 +174,7 @@ key-direction 1
 """
 
         # Write to .conf file with UTF-8 encoding
-        with open(client_conf_path, 'w', encoding='utf-8') as conf_file:
+        with open(client_conf_path, "w", encoding="utf-8") as conf_file:
             conf_file.write(config_content)
             conf_file.write(f"ca ca.crt\n")
             conf_file.write(f"cert {client_name}.crt\n")
@@ -139,22 +183,22 @@ key-direction 1
         logging.info(f"Client .conf file generated at {client_conf_path}")
 
         # Write to .ovpn file with inline certificates
-        with open(client_ovpn_path, 'w', encoding='utf-8') as ovpn_file:
+        with open(client_ovpn_path, "w", encoding="utf-8") as ovpn_file:
             ovpn_file.write(config_content)
             ovpn_file.write("<ca>\n")
-            with open(ca_crt_path, 'r', encoding='utf-8') as f:
+            with open(ca_crt_path, "r", encoding="utf-8") as f:
                 ovpn_file.write(f.read())
             ovpn_file.write("</ca>\n")
             ovpn_file.write("<cert>\n")
-            with open(client_crt_path, 'r', encoding='utf-8') as f:
+            with open(client_crt_path, "r", encoding="utf-8") as f:
                 ovpn_file.write(f.read())
             ovpn_file.write("</cert>\n")
             ovpn_file.write("<key>\n")
-            with open(client_key_path, 'r', encoding='utf-8') as f:
+            with open(client_key_path, "r", encoding="utf-8") as f:
                 ovpn_file.write(f.read())
             ovpn_file.write("</key>\n")
             ovpn_file.write("<tls-auth>\n")
-            with open(ta_key_path, 'r', encoding='utf-8') as f:
+            with open(ta_key_path, "r", encoding="utf-8") as f:
                 ovpn_file.write(f.read())
             ovpn_file.write("</tls-auth>\n")
         logging.info(f"Client .ovpn file generated at {client_ovpn_path}")
@@ -163,10 +207,11 @@ key-direction 1
         logging.error(f"Failed to generate client configuration: {e}")
         raise
 
+
 def update_timestamp(server_conf_path):
     """Removes existing timestamp and adds a new one."""
     try:
-        with open(server_conf_path, 'r', encoding='utf-8') as f:
+        with open(server_conf_path, "r", encoding="utf-8") as f:
             config_lines = f.readlines()
 
         updated_lines = []
@@ -175,22 +220,42 @@ def update_timestamp(server_conf_path):
             if line.strip() == "### Timestamp of Server Configuration Creation ###":
                 inside_timestamp = True
                 updated_lines.append(line)
-                updated_lines.append(f"# {datetime.now().strftime('%Y-%m-%d %H:%M:%S')} #\n")
-            elif line.strip() == "### End of Timestamp of Server Configuration Creation ###":
+                updated_lines.append(
+                    f"# {datetime.now().strftime('%Y-%m-%d %H:%M:%S')} #\n"
+                )
+            elif (
+                line.strip()
+                == "### End of Timestamp of Server Configuration Creation ###"
+            ):
                 inside_timestamp = False
                 updated_lines.append(line)
             elif not inside_timestamp:
                 updated_lines.append(line)
 
-        with open(server_conf_path, 'w', encoding='utf-8') as f:
+        with open(server_conf_path, "w", encoding="utf-8") as f:
             f.writelines(updated_lines)
         logging.info("Server configuration timestamp updated.")
     except Exception as e:
         logging.error(f"Failed to update server configuration timestamp: {e}")
         raise
 
-def regenerate_server_conf(server_conf_path, openvpn_tunnel_subnet, ca_crt_path, server_crt_path, server_key_path,
-                           dh_path, ta_key_path, crl_path, port, proto, cipher, data_ciphers, server_lan_subnet, ccd_dir):
+
+def regenerate_server_conf(
+    server_conf_path,
+    openvpn_tunnel_subnet,
+    ca_crt_path,
+    server_crt_path,
+    server_key_path,
+    dh_path,
+    ta_key_path,
+    crl_path,
+    port,
+    proto,
+    cipher,
+    data_ciphers,
+    server_lan_subnet,
+    ccd_dir,
+):
     """Regenerates the server configuration to re-inline the updated CRL."""
     generate_server_conf(
         server_conf_path,
@@ -206,6 +271,6 @@ def regenerate_server_conf(server_conf_path, openvpn_tunnel_subnet, ca_crt_path,
         cipher,
         data_ciphers,
         server_lan_subnet,
-        ccd_dir='ccd'  # Pass the relative path as a string
+        ccd_dir="ccd",  # Pass the relative path as a string
     )
     logging.info(f"Server configuration regenerated at {server_conf_path}")

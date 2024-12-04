@@ -1,16 +1,25 @@
+# Copyright (C) 2024 - 2025 HMS Industrial Network Solutions
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
 import socket
 
 # Define management interface parameters
-MANAGEMENT_HOST = '10.0.1.1'  # Replace with actual IP of your OpenVPN server
-MANAGEMENT_PORT = 7505         # Replace with actual port of the management interface
-TIMEOUT = 5                    # Set a 5-second timeout for socket connections
-BUFFER_SIZE = 4096             # Set a larger buffer size for receiving data
+MANAGEMENT_HOST = "10.0.1.1"  # Replace with actual IP of your OpenVPN server
+MANAGEMENT_PORT = 7505  # Replace with actual port of the management interface
+TIMEOUT = 5  # Set a 5-second timeout for socket connections
+BUFFER_SIZE = 4096  # Set a larger buffer size for receiving data
+
 
 def get_clients_status():
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     s.settimeout(TIMEOUT)  # Set a timeout for the socket connection
     try:
-        print(f"Connecting to OpenVPN management interface at {MANAGEMENT_HOST}:{MANAGEMENT_PORT}")
+        print(
+            f"Connecting to OpenVPN management interface at {MANAGEMENT_HOST}:{MANAGEMENT_PORT}"
+        )
         s.connect((MANAGEMENT_HOST, MANAGEMENT_PORT))
 
         # Receive the welcome message
@@ -19,7 +28,7 @@ def get_clients_status():
 
         # Send the 'status' command to the management interface
         print("Sending 'status' command...")
-        s.sendall(b'status\n')
+        s.sendall(b"status\n")
 
         # Receive and accumulate the response
         response = b""
@@ -38,7 +47,7 @@ def get_clients_status():
                 break
 
         # Decode the response into a string
-        response = response.decode('utf-8')
+        response = response.decode("utf-8")
         print("Complete response received.")
 
         # Initialize client and routing lists
@@ -57,27 +66,27 @@ def get_clients_status():
             # Detect sections (CLIENT_LIST, ROUTING_TABLE, etc.)
             if line.startswith("CLIENT_LIST"):
                 current_section = "CLIENT_LIST"
-                client_data = line.split(',')
+                client_data = line.split(",")
                 if len(client_data) >= 8:
                     client = {
-                        'common_name': client_data[1],
-                        'real_address': client_data[2],
-                        'virtual_address': client_data[3],
-                        'bytes_received': client_data[5],
-                        'bytes_sent': client_data[6],
-                        'connected_since': client_data[7],
+                        "common_name": client_data[1],
+                        "real_address": client_data[2],
+                        "virtual_address": client_data[3],
+                        "bytes_received": client_data[5],
+                        "bytes_sent": client_data[6],
+                        "connected_since": client_data[7],
                     }
                     clients.append(client)
 
             elif line.startswith("ROUTING_TABLE"):
                 current_section = "ROUTING_TABLE"
-                routing_data = line.split(',')
+                routing_data = line.split(",")
                 if len(routing_data) >= 5:
                     route = {
-                        'virtual_address': routing_data[1],
-                        'common_name': routing_data[2],
-                        'real_address': routing_data[3],
-                        'last_ref': routing_data[4],
+                        "virtual_address": routing_data[1],
+                        "common_name": routing_data[2],
+                        "real_address": routing_data[3],
+                        "last_ref": routing_data[4],
                     }
                     routing_info.append(route)
 
@@ -88,9 +97,9 @@ def get_clients_status():
         # Add routing table info to the corresponding client entries
         for client in clients:
             for route in routing_info:
-                if client['common_name'] == route['common_name']:
-                    client['virtual_address'] = route['virtual_address']
-                    client['last_ref'] = route['last_ref']
+                if client["common_name"] == route["common_name"]:
+                    client["virtual_address"] = route["virtual_address"]
+                    client["last_ref"] = route["last_ref"]
 
         return clients
 
@@ -103,6 +112,7 @@ def get_clients_status():
     finally:
         # Always close the socket connection, even if an error occurs
         s.close()
+
 
 # Example usage: Retrieve and display client connection status
 def display_client_status():
@@ -119,6 +129,7 @@ def display_client_status():
             print(f"  Last Ref: {client.get('last_ref', 'N/A')}\n")
     else:
         print("No clients are connected.")
+
 
 # Run the example
 if __name__ == "__main__":

@@ -1,3 +1,10 @@
+# Copyright (C) 2024 - 2025 HMS Industrial Network Solutions
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
 # client_revoke.py
 
 import os
@@ -11,6 +18,7 @@ import json
 
 BASE_DIR = get_base_dir()
 
+
 def revoke_client(client_name, ca_dir, openssl_cnf_path, subnets_csv):
     """Revokes a client's certificate and updates the CRL."""
     try:
@@ -22,23 +30,31 @@ def revoke_client(client_name, ca_dir, openssl_cnf_path, subnets_csv):
             return
 
         # Revoke the client certificate
-        run_command([
-            OPENSSL_PATH,
-            "ca",
-            "-config", openssl_cnf_path,
-            "-revoke", client_cert_path
-        ])
+        run_command(
+            [
+                OPENSSL_PATH,
+                "ca",
+                "-config",
+                openssl_cnf_path,
+                "-revoke",
+                client_cert_path,
+            ]
+        )
         logging.info(f"Client {client_name} certificate revoked.")
 
         # Regenerate the CRL
         crl_path = os.path.join(ca_dir, "crl.pem")
-        run_command([
-            OPENSSL_PATH,
-            "ca",
-            "-config", openssl_cnf_path,
-            "-gencrl",
-            "-out", crl_path
-        ])
+        run_command(
+            [
+                OPENSSL_PATH,
+                "ca",
+                "-config",
+                openssl_cnf_path,
+                "-gencrl",
+                "-out",
+                crl_path,
+            ]
+        )
         logging.info("CRL updated.")
 
         # Copy updated CRL to server directory
@@ -97,7 +113,9 @@ def revoke_client(client_name, ca_dir, openssl_cnf_path, subnets_csv):
 
         # Load openvpn_tunnel_subnet and server_lan_subnet from subnets.csv
         openvpn_tunnel_subnet = get_subnet_by_name(subnets_csv, "openvpn_tunnel_subnet")
-        server_lan_subnet = get_subnet_by_name(subnets_csv, "server_local_private_subnet")
+        server_lan_subnet = get_subnet_by_name(
+            subnets_csv, "server_local_private_subnet"
+        )
         if not openvpn_tunnel_subnet or not server_lan_subnet:
             logging.error("Required subnets not found in subnets.csv")
             raise Exception("Required subnets not found in subnets.csv")
@@ -117,10 +135,12 @@ def revoke_client(client_name, ca_dir, openssl_cnf_path, subnets_csv):
             cipher,
             data_ciphers,
             server_lan_subnet,
-            ccd_dir='ccd'  # Pass the relative path as a string
+            ccd_dir="ccd",  # Pass the relative path as a string
         )
         logging.info("Server configuration regenerated after client revocation.")
 
     except Exception as e:
         logging.error(f"Failed to revoke client {client_name}: {e}")
-        print(f"Failed to revoke client {client_name}. Check the logs for more details.")
+        print(
+            f"Failed to revoke client {client_name}. Check the logs for more details."
+        )

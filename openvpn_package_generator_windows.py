@@ -1,25 +1,36 @@
 #!/bin/python3
 
+# Copyright (C) 2024 - 2025 HMS Industrial Network Solutions
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
 # openvpn_package_generator_windows.py
 
 import os
 import zipfile
 
 # Find the file in the current directory that begins with OpenVPN_Cert_Generator_ and ends with .zip
-current_package = [file for file in os.listdir() if file.startswith('OpenVPN_Cert_Generator_') and file.endswith('.zip')]
+current_package = [
+    file
+    for file in os.listdir()
+    if file.startswith("OpenVPN_Cert_Generator_") and file.endswith(".zip")
+]
 
 if current_package:
     # Extract the version number from the current package name
-    version_number = current_package[0].split('_')[-1].split('.')[0]
+    version_number = current_package[0].split("_")[-1].split(".")[0]
 
     # Increment the version number, assuming it's always formatted as 'vX'
-    new_version_number = 'v' + str(int(version_number[1:]) + 1)
+    new_version_number = "v" + str(int(version_number[1:]) + 1)
 else:
     # If no current package is found, assume this is the first version
-    new_version_number = 'v1'
+    new_version_number = "v1"
 
 # Define the directory and files to include in the zip archive
-dir_to_zip = 'needed_binaries'
+dir_to_zip = "needed_binaries"
 files_to_zip = [
     "ca_setup.py",
     "client_cert.py",
@@ -38,13 +49,13 @@ files_to_zip = [
     "openvpn_package_generator_windows.py",
     "server_cert.py",
     "start_openvpn.bat",
-    "subnet_management.py"
-    ]
+    "subnet_management.py",
+]
 
 
 # Create the zip archive with the new version number
-zip_file_name = f'OpenVPN_Cert_Generator_{new_version_number}.zip'
-with zipfile.ZipFile(zip_file_name, 'w', zipfile.ZIP_DEFLATED) as zipf:
+zip_file_name = f"OpenVPN_Cert_Generator_{new_version_number}.zip"
+with zipfile.ZipFile(zip_file_name, "w", zipfile.ZIP_DEFLATED) as zipf:
     # Add files to the zip
     for file in files_to_zip:
         if os.path.isfile(file):  # Check if the file exists
@@ -58,7 +69,9 @@ with zipfile.ZipFile(zip_file_name, 'w', zipfile.ZIP_DEFLATED) as zipf:
             for file in files:
                 full_path = os.path.join(root, file)
                 # Ensure the directory structure is preserved in the zip
-                zipf.write(full_path, os.path.relpath(full_path, os.path.dirname(dir_to_zip)))
+                zipf.write(
+                    full_path, os.path.relpath(full_path, os.path.dirname(dir_to_zip))
+                )
     else:
         print(f"Warning: Directory '{dir_to_zip}' not found. Skipping.")
 

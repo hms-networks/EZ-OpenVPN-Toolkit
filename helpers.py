@@ -1,3 +1,10 @@
+# Copyright (C) 2024 - 2025 HMS Industrial Network Solutions
+# Software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
 # helpers.py
 
 import subprocess
@@ -7,6 +14,7 @@ import sys
 from config import get_base_dir
 
 BASE_DIR = get_base_dir()
+
 
 def run_command(command_list):
     """
@@ -18,7 +26,7 @@ def run_command(command_list):
             check=True,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
-            universal_newlines=True
+            universal_newlines=True,
         )
         logging.info(f"Command executed successfully: {' '.join(command_list)}")
         logging.debug(result.stdout)
@@ -27,6 +35,7 @@ def run_command(command_list):
         logging.error(f"Exit code: {e.returncode}")
         logging.error(f"Output: {e.stderr}")
         raise e
+
 
 def create_directory(path):
     """

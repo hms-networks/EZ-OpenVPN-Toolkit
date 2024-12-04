@@ -1,8 +1,16 @@
+# Copyright (C) 2024 - 2025 HMS Industrial Network Solutions
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
 # logger.py
 
 import logging
 import os
 from helpers import get_base_dir
+
 
 def setup_logging():
     """
@@ -11,7 +19,7 @@ def setup_logging():
     - Does not output logs to the console.
     """
     BASE_DIR = get_base_dir()
-    log_filename = os.path.join(BASE_DIR, 'master.log')
+    log_filename = os.path.join(BASE_DIR, "master.log")
 
     # Create a custom logger
     logger = logging.getLogger()
@@ -27,7 +35,7 @@ def setup_logging():
     file_handler.setLevel(logging.INFO)
 
     # Create formatters and add them to the handlers
-    formatter = logging.Formatter('%(asctime)s %(levelname)s - %(message)s')
+    formatter = logging.Formatter("%(asctime)s %(levelname)s - %(message)s")
     file_handler.setFormatter(formatter)
 
     # Add handlers to the logger

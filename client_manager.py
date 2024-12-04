@@ -1,3 +1,10 @@
+# Copyright (C) 2024 - 2025 HMS Industrial Network Solutions
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
 # client_manager.py
 
 import os
@@ -5,21 +12,38 @@ import logging
 import shutil
 from helpers import run_command, get_base_dir, create_directory
 from config import OPENSSL_PATH
-from openvpn_config import update_timestamp, generate_client_ovpn, regenerate_server_conf
+from openvpn_config import (
+    update_timestamp,
+    generate_client_ovpn,
+    regenerate_server_conf,
+)
 from subnet_management import (
     load_existing_subnets,
     validate_subnet,
     save_subnet_to_csv,
     remove_client_from_csv,
-    get_subnet_by_name
+    get_subnet_by_name,
 )
 
 BASE_DIR = get_base_dir()
-CLIENTS_DIR = os.path.join(BASE_DIR, 'clients')
-SERVER_DIR = os.path.join(BASE_DIR, 'server')
+CLIENTS_DIR = os.path.join(BASE_DIR, "clients")
+SERVER_DIR = os.path.join(BASE_DIR, "server")
 
-def manage_client_creation(client_name, ca_dir, common_details, openssl_cnf_path, server_conf_path, ccd_dir,
-                           openvpn_tunnel_subnet, server_address, port, proto, cipher, data_ciphers):
+
+def manage_client_creation(
+    client_name,
+    ca_dir,
+    common_details,
+    openssl_cnf_path,
+    server_conf_path,
+    ccd_dir,
+    openvpn_tunnel_subnet,
+    server_address,
+    port,
+    proto,
+    cipher,
+    data_ciphers,
+):
     """
     Manages the creation of client certificates and configurations.
     """
@@ -35,59 +59,100 @@ def manage_client_creation(client_name, ca_dir, common_details, openssl_cnf_path
         # Generate client CSR
         client_csr_path = os.path.join(client_folder, f"{client_name}.csr")
         subject = f"/C={common_details['C']}/ST={common_details['ST']}/L={common_details['L']}/O={common_details['O']}/OU={common_details['OU']}/CN={client_name}/emailAddress={common_details['email_address']}"
-        run_command([
-            OPENSSL_PATH,
-            "req", "-new",
-            "-key", client_key_path,
-            "-out", client_csr_path,
-            "-subj", subject,
-            "-config", openssl_cnf_path
-        ])
+        run_command(
+            [
+                OPENSSL_PATH,
+                "req",
+                "-new",
+                "-key",
+                client_key_path,
+                "-out",
+                client_csr_path,
+                "-subj",
+                subject,
+                "-config",
+                openssl_cnf_path,
+            ]
+        )
         logging.info(f"Client CSR generated at: {client_csr_path}")
 
         # Sign client certificate
         client_crt_path = os.path.join(client_folder, f"{client_name}.crt")
-        run_command([
-            OPENSSL_PATH,
-            "ca", "-batch",
-            "-config", openssl_cnf_path,
-            "-in", client_csr_path,
-            "-out", client_crt_path,
-            "-days", "3650",
-            "-notext", "-md", "sha256"
-        ])
+        run_command(
+            [
+                OPENSSL_PATH,
+                "ca",
+                "-batch",
+                "-config",
+                openssl_cnf_path,
+                "-in",
+                client_csr_path,
+                "-out",
+                client_crt_path,
+                "-days",
+                "3650",
+                "-notext",
+                "-md",
+                "sha256",
+            ]
+        )
         logging.info(f"Client certificate signed at: {client_crt_path}")
 
         # Generate client configuration
         ta_key_path = os.path.join(SERVER_DIR, "ta.key")
         ca_crt_path = os.path.join(ca_dir, "ca.crt")
-        generate_client_ovpn(client_name, client_folder, ca_crt_path, client_crt_path, client_key_path,
-                             ta_key_path, server_address, port, proto, cipher, data_ciphers)
+        generate_client_ovpn(
+            client_name,
+            client_folder,
+            ca_crt_path,
+            client_crt_path,
+            client_key_path,
+            ta_key_path,
+            server_address,
+            port,
+            proto,
+            cipher,
+            data_ciphers,
+        )
         logging.info(f"Client {client_name} configuration generated.")
 
         # Ask if client has a subnet to push over VPN
         while True:
-            has_subnet = input(f"Does client {client_name} have a subnet to push over the VPN tunnel? (y/n): ").strip().lower()
-            if has_subnet in ['y', 'n']:
+            has_subnet = (
+                input(
+                    f"Does client {client_name} have a subnet to push over the VPN tunnel? (y/n): "
+                )
+                .strip()
+                .lower()
+            )
+            if has_subnet in ["y", "n"]:
                 break
             else:
                 print("Invalid input. Please enter 'y' or 'n'.")
 
-        if has_subnet == 'y':
+        if has_subnet == "y":
             while True:
                 try:
                     # Prompt for client subnet
-                    client_subnet_input = input(f"Enter the subnet for client {client_name} (e.g., 10.255.254.0/24): ").strip()
+                    client_subnet_input = input(
+                        f"Enter the subnet for client {client_name} (e.g., 10.255.254.0/24): "
+                    ).strip()
                     # Load existing subnets and validate the client subnet
-                    existing_subnets = load_existing_subnets(os.path.join(BASE_DIR, 'subnets.csv'))
-                    client_subnet = validate_subnet(client_subnet_input, existing_subnets)
+                    existing_subnets = load_existing_subnets(
+                        os.path.join(BASE_DIR, "subnets.csv")
+                    )
+                    client_subnet = validate_subnet(
+                        client_subnet_input, existing_subnets
+                    )
                     logging.info(f"Validated client subnet: {client_subnet}")
                     break  # Exit the loop if validation is successful
                 except ValueError as e:
                     print(f"Error: {e}. Please try again.")
 
             # Save the client subnet to subnets.csv
-            save_subnet_to_csv(os.path.join(BASE_DIR, 'subnets.csv'), client_name, client_subnet)
+            save_subnet_to_csv(
+                os.path.join(BASE_DIR, "subnets.csv"), client_name, client_subnet
+            )
             logging.info(f"Saved subnet for client {client_name} to subnets.csv")
             existing_subnets.append(str(client_subnet))
 
@@ -96,12 +161,20 @@ def manage_client_creation(client_name, ca_dir, common_details, openssl_cnf_path
                 # Ensure CCD directory exists
                 os.makedirs(ccd_dir, exist_ok=True)
                 ccd_file_path = os.path.join(ccd_dir, client_name)
-                with open(ccd_file_path, 'w') as ccd_file:
-                    ccd_file.write(f"iroute {client_subnet.network_address} {client_subnet.netmask}\n")
-                logging.info(f"CCD file for client {client_name} written at {ccd_file_path}")
+                with open(ccd_file_path, "w") as ccd_file:
+                    ccd_file.write(
+                        f"iroute {client_subnet.network_address} {client_subnet.netmask}\n"
+                    )
+                logging.info(
+                    f"CCD file for client {client_name} written at {ccd_file_path}"
+                )
             except Exception as e:
-                logging.error(f"Failed to create CCD file for client {client_name}: {e}")
-                print(f"Failed to create CCD file for client {client_name}. Check the logs for more details.")
+                logging.error(
+                    f"Failed to create CCD file for client {client_name}: {e}"
+                )
+                print(
+                    f"Failed to create CCD file for client {client_name}. Check the logs for more details."
+                )
 
         else:
             logging.info(f"Client {client_name} does not have a subnet to push.")
@@ -109,47 +182,55 @@ def manage_client_creation(client_name, ca_dir, common_details, openssl_cnf_path
 
         # Always update the timestamp in server configuration
         update_timestamp(server_conf_path)
-        logging.info(f"Server configuration timestamp updated after adding client {client_name}.")
+        logging.info(
+            f"Server configuration timestamp updated after adding client {client_name}."
+        )
 
         # Read server_lan_subnet from subnets.csv
-        server_lan_subnet = get_subnet_by_name(os.path.join(BASE_DIR, 'subnets.csv'), 'server_local_private_subnet')
+        server_lan_subnet = get_subnet_by_name(
+            os.path.join(BASE_DIR, "subnets.csv"), "server_local_private_subnet"
+        )
         if not server_lan_subnet:
             logging.error("Server LAN subnet not found in subnets.csv")
             raise Exception("Server LAN subnet not found in subnets.csv")
-        
+
         # Copy crl.pem from ca dir to server_conf_path
-        crl_source_path = os.path.join(ca_dir, 'crl.pem')
-        crl_dest_path = os.path.join(os.path.dirname(server_conf_path), 'crl.pem')
+        crl_source_path = os.path.join(ca_dir, "crl.pem")
+        crl_dest_path = os.path.join(os.path.dirname(server_conf_path), "crl.pem")
         try:
             shutil.copy(crl_source_path, crl_dest_path)
             logging.info(f"Copied crl.pem from {crl_source_path} to {crl_dest_path}")
         except Exception as e:
             logging.error(f"Failed to copy crl.pem: {e}")
             raise
-        
 
         # Regenerate the server configuration to re-inline the updated CRL and include client subnets
         regenerate_server_conf(
             server_conf_path,
             openvpn_tunnel_subnet,
-            os.path.join(ca_dir, 'ca.crt'),
-            os.path.join(os.path.dirname(server_conf_path), 'server.crt'),
-            os.path.join(os.path.dirname(server_conf_path), 'server.key'),
-            os.path.join(os.path.dirname(server_conf_path), 'dh.pem'),
+            os.path.join(ca_dir, "ca.crt"),
+            os.path.join(os.path.dirname(server_conf_path), "server.crt"),
+            os.path.join(os.path.dirname(server_conf_path), "server.key"),
+            os.path.join(os.path.dirname(server_conf_path), "dh.pem"),
             ta_key_path,
-            os.path.join(os.path.dirname(server_conf_path), 'crl.pem'),
+            os.path.join(os.path.dirname(server_conf_path), "crl.pem"),
             port,
             proto,
             cipher,
             data_ciphers,
             server_lan_subnet,
-            ccd_dir
+            ccd_dir,
         )
-        logging.info(f"Server configuration regenerated with updated CRL and client subnets after adding client {client_name}.")
+        logging.info(
+            f"Server configuration regenerated with updated CRL and client subnets after adding client {client_name}."
+        )
 
     except Exception as e:
         logging.error(f"Failed to create client {client_name}: {e}")
-        print(f"Failed to create client {client_name}. Check the logs for more details.")
+        print(
+            f"Failed to create client {client_name}. Check the logs for more details."
+        )
+
 
 def list_current_clients():
     """
@@ -157,4 +238,8 @@ def list_current_clients():
     """
     if not os.path.exists(CLIENTS_DIR):
         return []
-    return [client for client in os.listdir(CLIENTS_DIR) if os.path.isdir(os.path.join(CLIENTS_DIR, client))]
+    return [
+        client
+        for client in os.listdir(CLIENTS_DIR)
+        if os.path.isdir(os.path.join(CLIENTS_DIR, client))
+    ]
