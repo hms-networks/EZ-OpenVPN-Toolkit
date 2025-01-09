@@ -43,7 +43,7 @@ default_md = sha256
 preserve = no
 policy = policy_strict
 default_days = 3650
-default_crl_days = 30  # Added default_crl_days
+default_crl_days = 3650  # Added default_crl_days
 
 [ policy_strict ]
 countryName = supplied
