@@ -261,11 +261,23 @@ def prompt_for_clients():
     """
     Prompts the user to enter client information for client creation.
     Ensures the weakest cipher is selected for fallback and sets data-ciphers.
-    """
-    # Ask the user for client details but provide default values
-    default_values = {"server_address": "example.com", "port": "1194", "proto": "udp"}
 
-    # Load client names from client_names.json if it exists
+    Returns:
+        new_client_names (list): List of newly added client names.
+        server_address (str): The OpenVPN server address.
+        port (str): The OpenVPN server port.
+        proto (str): The OpenVPN protocol (tcp/udp).
+        weakest_cipher (str): The weakest selected cipher (lowest in valid_ciphers list).
+        selected_ciphers (list): List of selected ciphers for data-ciphers.
+    """
+    # Default values for server configuration
+    default_values = {
+        "server_address": "example.com",
+        "port": "1194",
+        "proto": "udp"
+    }
+
+    # Load existing client names from JSON if file exists
     client_names_json = os.path.join(BASE_DIR, "client_names.json")
     if os.path.exists(client_names_json):
         with open(client_names_json, "r") as f:
@@ -273,99 +285,139 @@ def prompt_for_clients():
     else:
         client_names = []
 
-    # Get number of clients, ensuring it's a valid integer
+    # Prompt for number of clients, ensuring it's a valid positive integer
     while True:
         try:
             num_clients = int(input("Enter the number of clients to create: "))
+            if num_clients <= 0:
+                print("Please enter a positive integer.")
+                continue
             break
         except ValueError:
-            print("Please enter a valid number.")
+            print("Please enter a valid integer.")
 
-    # Ask for client name for each client, make sure it does not already exist
+    # Ask for client name for each client, ensure it does not already exist
+    new_client_names = []
     for i in range(num_clients):
-        client_name = input(f"Enter the name for client {i + 1}: ")
-        while client_name in client_names:
-            print("Client name already exists. Please enter a different name.")
-            client_name = input(f"Enter the name for client {i + 1}: ")
-        client_names.append(client_name)
+        while True:
+            client_name = input(f"Enter the name for client {i + 1}: ").strip()
+            if not client_name:
+                print("Client name cannot be empty.")
+                continue
+            if client_name in client_names:
+                print("Client name already exists. Please enter a different name.")
+                continue
+            # Add to both the in-memory list of all client names and the list of newly created names
+            client_names.append(client_name)
+            new_client_names.append(client_name)
+            break
 
-    # Save client names to client_names.json
+    # Save updated client names to client_names.json
     with open(client_names_json, "w") as f:
         json.dump(client_names, f)
 
     # Prompt for server details with default values
-    server_address = (
-        input(
-            f"Enter the OpenVPN server address [{default_values['server_address']}]: "
-        )
-        or default_values["server_address"]
-    )
-    port = (
-        input(f"Enter the OpenVPN server port [{default_values['port']}]: ")
-        or default_values["port"]
-    )
-    proto = (
-        input(f"Enter the protocol (tcp/udp) [{default_values['proto']}]: ")
-        or default_values["proto"]
-    )
+    server_address = input(f"Enter the OpenVPN server address [{default_values['server_address']}]: ").strip()
+    if not server_address:
+        server_address = default_values["server_address"]
 
-    # Define the list of valid ciphers in order of strength (weakest to strongest)
+    port = input(f"Enter the OpenVPN server port [{default_values['port']}]: ").strip()
+    if not port:
+        port = default_values["port"]
+
+    # Force user to enter either 'tcp' or 'udp'
+    while True:
+        proto = input(f"Enter the protocol (tcp/udp) [{default_values['proto']}]: ").strip().lower()
+        if not proto:
+            proto = default_values["proto"]
+        if proto in ["tcp", "udp"]:
+            break
+        else:
+            print("Invalid protocol. Please enter either 'tcp' or 'udp'.")
+
+    # List of valid ciphers in ascending order of strength (weakest to strongest)
     valid_ciphers = [
-        "DES-EDE3-CBC",  # 1.) Weak cipher - not recommended
-        "BF-CBC",  # 2.) Weak cipher - not recommended
-        "SEED-CBC",  # 3.)
-        "CAMELLIA-128-CBC",  # 4.)
-        "AES-128-CBC",  # 5.)
-        "CAMELLIA-192-CBC",  # 6.)
-        "AES-192-CBC",  # 7.)
-        "CAMELLIA-256-CBC",  # 8.)
-        "AES-256-CBC",  # 9.)
-        "AES-128-GCM",  # 10.)
-        "AES-192-GCM",  # 11.)
-        "AES-256-GCM",  # 12.)
+        "DES-EDE3-CBC",       # 1.) Very weak (not recommended)
+        "BF-CBC",             # 2.) Weak (not recommended)
+        "SEED-CBC",           # 3.)
+        "CAMELLIA-128-CBC",   # 4.)
+        "AES-128-CBC",        # 5.)
+        "CAMELLIA-192-CBC",   # 6.)
+        "AES-192-CBC",        # 7.)
+        "CAMELLIA-256-CBC",   # 8.)
+        "AES-256-CBC",        # 9.)
+        "AES-128-GCM",        # 10.)
+        "AES-192-GCM",        # 11.)
+        "AES-256-GCM",        # 12.)
         "CHACHA20-POLY1305",  # 13.)
     ]
 
     selected_ciphers = []
     print(
-        "\nSelect ciphers for data-ciphers (one at a time). Enter the number corresponding to the cipher."
+        "\nSelect ciphers for data-ciphers one at a time (at least one is required)."
+        " Enter the number corresponding to the cipher."
     )
     print("When you are done selecting ciphers, enter 0 or 'done'.")
 
     while True:
+        # If there are no valid ciphers left to choose from, break
         if not valid_ciphers:
-            print("No more ciphers available to select.")
+            print("\nNo more ciphers available to select.")
             break
 
         print("\nAvailable Ciphers:")
         for idx, cipher_name in enumerate(valid_ciphers, start=1):
             print(f"{idx}.) {cipher_name}")
 
-        selection = input("Select a cipher (0 to finish): ")
-        if selection.lower() in ("0", "done"):
+        # Show user which ciphers have been selected so far
+        if selected_ciphers:
+            print(f"\nCiphers currently selected: {', '.join(selected_ciphers)}")
+
+        selection = input("Select a cipher (0 to finish): ").strip().lower()
+        if selection in ("0", "done"):
+            # Ensure the user has selected at least one cipher
             if selected_ciphers:
                 break
-            print("You must select at least one cipher.")
-            continue
+            else:
+                print("You must select at least one cipher.")
+                continue
 
         try:
             selection_int = int(selection)
             if 1 <= selection_int <= len(valid_ciphers):
                 cipher_selected = valid_ciphers[selection_int - 1]
                 selected_ciphers.append(cipher_selected)
+                # Remove selected cipher from the list so it can't be chosen again
+                valid_ciphers.remove(cipher_selected)
                 print(f"Selected cipher: {cipher_selected}")
             else:
                 print(f"Please enter a number between 1 and {len(valid_ciphers)}.")
         except ValueError:
             print("Invalid input. Please enter a number.")
 
-    # Determine the weakest cipher by its position in the valid_ciphers list
-    weakest_cipher = min(
-        selected_ciphers, key=lambda cipher: valid_ciphers.index(cipher)
-    )
+    # Determine the weakest cipher by its position in the original ordering
+    full_ordering = [
+        "DES-EDE3-CBC",
+        "BF-CBC",
+        "SEED-CBC",
+        "CAMELLIA-128-CBC",
+        "AES-128-CBC",
+        "CAMELLIA-192-CBC",
+        "AES-192-CBC",
+        "CAMELLIA-256-CBC",
+        "AES-256-CBC",
+        "AES-128-GCM",
+        "AES-192-GCM",
+        "AES-256-GCM",
+        "CHACHA20-POLY1305",
+    ]
+    if selected_ciphers:
+        weakest_cipher = min(selected_ciphers, key=lambda c: full_ordering.index(c))
+    else:
+        weakest_cipher = None
 
-    return client_names, server_address, port, proto, weakest_cipher, selected_ciphers
-
+    # Return the new client names along with the chosen server/cipher information
+    return new_client_names, server_address, port, proto, weakest_cipher, selected_ciphers
 
 def prompt_for_clients_existing_server():
     """
