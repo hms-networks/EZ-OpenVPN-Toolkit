@@ -1,3 +1,5 @@
 ..\
 build/
 *.spec
+dist/*.exe
+needed_binaries/*.log

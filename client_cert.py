@@ -6,18 +6,22 @@
 # under the License.
 
 # client_cert.py
+
 import os
 import logging
-from helpers import run_command
+from helpers import run_command, run_command_with_progress
 from config import OPENSSL_PATH
 
 
-def generate_client_key(client_key_path):
+def generate_client_key(client_key_path: str) -> None:
     """
-    Generates a client key.
+    Generates a client key (4096-bit RSA) with progress indicator.
     """
     try:
-        run_command([OPENSSL_PATH, "genrsa", "-out", client_key_path, "4096"])
+        run_command_with_progress(
+            [OPENSSL_PATH, "genrsa", "-out", client_key_path, "4096"],
+            "Generating 4096-bit client private key",
+        )
         logging.info(f"Client key generated at: {client_key_path}")
     except Exception as e:
         logging.error(f"Failed to generate client key: {e}")
@@ -25,27 +29,32 @@ def generate_client_key(client_key_path):
 
 
 def generate_client_csr(
-    client_key_path, client_csr_path, client_name, common_details, openssl_cnf_path
-):
+    client_key_path: str,
+    client_csr_path: str,
+    client_name: str,
+    common_details: dict,
+    openssl_cnf_path: str,
+) -> None:
     """
     Generates a client CSR.
     """
     try:
-        # Use the actual client_name for CN
-        subject = f"/C={common_details['C']}/ST={common_details['ST']}/L={common_details['L']}/O={common_details['O']}/OU={common_details['OU']}/CN={client_name}/emailAddress={common_details['email_address']}"
+        subject = (
+            f"/C={common_details['C']}"
+            f"/ST={common_details['ST']}"
+            f"/L={common_details['L']}"
+            f"/O={common_details['O']}"
+            f"/OU={common_details['OU']}"
+            f"/CN={client_name}"
+            f"/emailAddress={common_details['email_address']}"
+        )
         run_command(
             [
-                OPENSSL_PATH,
-                "req",
-                "-new",
-                "-key",
-                client_key_path,
-                "-out",
-                client_csr_path,
-                "-subj",
-                subject,
-                "-config",
-                openssl_cnf_path,
+                OPENSSL_PATH, "req", "-new",
+                "-key", client_key_path,
+                "-out", client_csr_path,
+                "-subj", subject,
+                "-config", openssl_cnf_path,
             ]
         )
         logging.info(f"Client CSR generated at: {client_csr_path}")
@@ -54,26 +63,21 @@ def generate_client_csr(
         raise
 
 
-def sign_client_certificate(client_csr_path, client_crt_path, openssl_cnf_path):
+def sign_client_certificate(client_csr_path: str, client_crt_path: str, openssl_cnf_path: str) -> None:
+    """
+    Signs a client certificate with the CA.
+    """
     try:
         run_command(
             [
-                OPENSSL_PATH,
-                "ca",
-                "-batch",
-                "-config",
-                openssl_cnf_path,
-                "-extensions",
-                "client_cert",  # Added this line
-                "-in",
-                client_csr_path,
-                "-out",
-                client_crt_path,
-                "-days",
-                "3650",
+                OPENSSL_PATH, "ca", "-batch",
+                "-config", openssl_cnf_path,
+                "-extensions", "client_cert",
+                "-in", client_csr_path,
+                "-out", client_crt_path,
+                "-days", "3650",
                 "-notext",
-                "-md",
-                "sha256",
+                "-md", "sha256",
             ]
         )
         logging.info(f"Client certificate signed at: {client_crt_path}")

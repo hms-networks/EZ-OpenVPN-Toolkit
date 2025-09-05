@@ -7,37 +7,109 @@
 
 # helpers.py
 
-import subprocess
 import os
-import logging
 import sys
+import time
+import json
+import logging
+import itertools
+import threading
+import subprocess
+from typing import List, Sequence, Optional
 from config import get_base_dir
 
 BASE_DIR = get_base_dir()
 
+# ----------------------------
+# Progress UI (spinner) utils
+# ----------------------------
 
-def run_command(command_list):
+class Spinner:
+    def __init__(self, message: str = "Working"):
+        self.message = message
+        self._stop = False
+        self._t: Optional[threading.Thread] = None
+
+    def start(self) -> None:
+        self._t = threading.Thread(target=self._spin, daemon=True)
+        self._t.start()
+
+    def _spin(self) -> None:
+        for ch in itertools.cycle(r"-\|/"):
+            if self._stop:
+                break
+            sys.stdout.write(f"\r{self.message} {ch}")
+            sys.stdout.flush()
+            time.sleep(0.1)
+        # clear the line
+        sys.stdout.write("\r" + " " * (len(self.message) + 2) + "\r")
+        sys.stdout.flush()
+
+    def stop(self, suffix: str = "done") -> None:
+        self._stop = True
+        if self._t:
+            self._t.join()
+        print(f"{self.message} ... {suffix}")
+
+
+def run_command_with_progress(cmd: Sequence[str], message: str) -> None:
     """
-    Runs a command using subprocess and logs the output.
+    Run a command while showing a spinner. Streams combined stdout+stderr so
+    OpenSSL progress (dots/lines) is visible. Raises CalledProcessError on failure.
     """
+    sp = Spinner(message)
+    sp.start()
+    try:
+        proc = subprocess.Popen(
+            cmd,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True,
+            bufsize=1,
+        )
+        last_line_time = time.time()
+        if proc.stdout:
+            for line in iter(proc.stdout.readline, ""):
+                # print informative lines immediately; throttle noisy dot streams
+                now = time.time()
+                if line.strip() and (len(line.strip()) > 5 or (now - last_line_time) > 1.0):
+                    print(line.rstrip())
+                    last_line_time = now
+        proc.wait()
+        if proc.returncode != 0:
+            raise subprocess.CalledProcessError(proc.returncode, cmd)
+        sp.stop("ok")
+    except Exception:
+        sp.stop("failed")
+        raise
+
+
+# ----------------------------
+# Existing helpers
+# ----------------------------
+
+def run_command(command: Sequence[str]) -> None:
+    """
+    Runs a system command and raises if it fails.
+    """
+    logging.debug(f"Running command: {' '.join(command)}")
     try:
         result = subprocess.run(
-            command_list,
-            check=True,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            universal_newlines=True,
+            command, check=True, capture_output=True, text=True
         )
-        logging.info(f"Command executed successfully: {' '.join(command_list)}")
-        logging.debug(result.stdout)
+        if result.stdout:
+            logging.debug(result.stdout.strip())
+        if result.stderr:
+            # OpenSSL often writes useful progress to stderr; keep at debug level
+            logging.debug(result.stderr.strip())
     except subprocess.CalledProcessError as e:
-        logging.error(f"Command failed: {' '.join(command_list)}")
+        logging.error(f"Command failed: {' '.join(command)}")
         logging.error(f"Exit code: {e.returncode}")
         logging.error(f"Output: {e.stderr}")
-        raise e
+        raise
 
 
-def create_directory(path):
+def create_directory(path: str) -> None:
     """
     Creates a directory if it doesn't exist.
     """

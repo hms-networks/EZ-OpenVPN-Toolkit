@@ -1,7 +1,0 @@
-YU22MAR2300087 OpenVPN Server
-Ethernet 1 10.255.254.4
-Ethernet 2 10.255.244.1
-
-YU23MAR2300047 OpenVPN Client
-Ethernet 1 10.255.254.9
-Ethernet 2 10.255.242.1
